@@ -1,4 +1,6 @@
 import express from "express";
+import dotenv from "dotenv";
+dotenv.config();
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import axios from "axios";
@@ -84,6 +86,35 @@ async function startServer() {
     }
 
     archive.finalize();
+  });
+
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const { messages } = req.body;
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: "Invalid messages provided" });
+      }
+
+      const response = await axios.post(
+        "https://api.sarvam.ai/v1/chat/completions",
+        {
+          model: "sarvam-m",
+          messages,
+          temperature: 0.2
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.SARVAM_API_KEY}`
+          }
+        }
+      );
+
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("Sarvam API error:", error.response?.data || error.message);
+      res.status(500).json({ error: "Failed to fetch response from Sarvam AI" });
+    }
   });
 
   // Vite middleware for development

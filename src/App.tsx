@@ -24,8 +24,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { GoogleGenAI } from "@google/genai";
-
 interface PDFLink {
   title: string;
   url: string;
@@ -50,8 +48,6 @@ export default function App() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -86,20 +82,31 @@ export default function App() {
         ? `I have found ${links.length} RBI documents. Some titles include: ${links.slice(0, 5).map(l => l.title).join(", ")}.`
         : "I haven't scanned the RBI website yet, but I can answer general questions about RBI policies.";
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: userMessage,
-        config: {
-          systemInstruction: `You are Artha-Sahayak, an AI assistant for the Reserve Bank of India (RBI) documents. 
+      const systemInstruction = `You are Artha-Sahayak, an AI assistant for the Reserve Bank of India (RBI) documents. 
           Your goal is to help users understand complex financial circulars and statistical handbooks.
           Context: ${context}
           Style: Professional, helpful, and concise. Use Indian financial terminology where appropriate.
           If the user asks in Hindi or other Indian languages, respond in that language if possible, or provide a translation.
-          Mention that you are powered by Databricks Lakehouse architecture for the Bharat Bricks Hackathon.`
-        }
+          Mention that you are powered by Databricks Lakehouse architecture for the Bharat Bricks Hackathon.`;
+
+      // Map local messages to OpenAI format (bot -> assistant)
+      const backendMessages = [
+        { role: "system", content: systemInstruction },
+        ...messages.map(m => ({ role: m.role === "bot" ? "assistant" : "user", content: m.content })),
+        { role: "user", content: userMessage }
+      ];
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: backendMessages })
       });
 
-      setMessages(prev => [...prev, { role: "bot", content: response.text || "I'm sorry, I couldn't process that." }]);
+      if (!res.ok) throw new Error("Failed to fetch response");
+      const data = await res.json();
+      const botReply = data.choices?.[0]?.message?.content || "I'm sorry, I couldn't process that.";
+
+      setMessages(prev => [...prev, { role: "bot", content: botReply }]);
     } catch (err: any) {
       setMessages(prev => [...prev, { role: "bot", content: "Error: " + (err.message || "Something went wrong.") }]);
     } finally {
