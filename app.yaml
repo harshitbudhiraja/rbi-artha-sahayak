@@ -1,0 +1,7 @@
+# Databricks App configuration
+# https://docs.databricks.com/en/dev-tools/apps/index.html
+
+command: [ "npm", "start" ]
+env:
+  - name: NODE_ENV
+    value: "production"

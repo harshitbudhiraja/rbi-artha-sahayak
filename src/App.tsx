@@ -90,9 +90,11 @@ export default function App() {
           Mention that you are powered by Databricks Lakehouse architecture for the Bharat Bricks Hackathon.`;
 
       // Map local messages to OpenAI format (bot -> assistant)
+      // We use slice(1) to remove the initial welcome 'bot' message so the first interaction is from the 'user'
+      const history = messages.slice(1).map(m => ({ role: m.role === "bot" ? "assistant" : "user", content: m.content }));
       const backendMessages = [
         { role: "system", content: systemInstruction },
-        ...messages.map(m => ({ role: m.role === "bot" ? "assistant" : "user", content: m.content })),
+        ...history,
         { role: "user", content: userMessage }
       ];
 
